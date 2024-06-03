@@ -85,6 +85,9 @@ func Run(ctx context.Context, conf *config.Config) error {
 	}
 	jobs.start(ctx, controlJob, true)
 
+	dbusJob := newDBusJob(jobs)
+	jobs.start(ctx, dbusJob, true)
+
 	for i, jc := range conf.Global.Monitoring {
 		var (
 			job job.Job
@@ -191,6 +194,16 @@ func (s *jobs) status() map[string]*job.Status {
 	return ret
 }
 
+func (s *jobs) jobStatus(job string) (*job.Status, error) {
+	s.m.RLock()
+	defer s.m.RUnlock()
+	j, ok := s.jobs[job]
+	if !ok {
+		return nil, errors.Errorf("Job %s does not exist", job)
+	}
+	return j.Status(), nil
+}
+
 func (s *jobs) wakeup(job string) error {
 	s.m.RLock()
 	defer s.m.RUnlock()
@@ -216,6 +229,7 @@ func (s *jobs) reset(job string) error {
 const (
 	jobNamePrometheus = "_prometheus"
 	jobNameControl    = "_control"
+	jobNameDBus       = "_dbus"
 )
 
 func IsInternalJobName(s string) bool {
